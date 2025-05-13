@@ -1,3 +1,4 @@
+// models/dailyFeedSchedule.js
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
@@ -12,6 +13,12 @@ const DailyFeedSchedule = sequelize.define(
     cow_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: "cows",
+        key: "id",
+      },
+      onDelete: "RESTRICT",
+      onUpdate: "CASCADE",
       validate: {
         notNull: { msg: "Cow ID is required" },
         isInt: { msg: "Cow ID must be an integer" },
@@ -30,6 +37,10 @@ const DailyFeedSchedule = sequelize.define(
       allowNull: false,
       validate: {
         notEmpty: { msg: "Session cannot be empty" },
+        isIn: {
+          args: [["Pagi", "Siang", "Sore"]],
+          msg: "Session must be one of: Pagi, Siang, Sore",
+        },
       },
     },
     weather: {
@@ -87,6 +98,12 @@ const DailyFeedSchedule = sequelize.define(
   {
     tableName: "daily_feed_schedule",
     timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ["cow_id", "date", "session"],
+      },
+    ],
   }
 );
 

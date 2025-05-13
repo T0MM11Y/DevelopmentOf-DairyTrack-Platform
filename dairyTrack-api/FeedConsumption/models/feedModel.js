@@ -43,6 +43,13 @@ const Feed = sequelize.define(
         min: { args: [0], msg: "Minimum stock must be at least 0" },
       },
     },
+    unit: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      validate: {
+        notEmpty: { msg: "Unit cannot be empty" },
+      },
+    },
     price: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,

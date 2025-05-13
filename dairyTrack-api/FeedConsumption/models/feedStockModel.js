@@ -1,6 +1,6 @@
+// models/feedStockModel.js
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
-const Feed = require("./feedModel");
 
 const FeedStock = sequelize.define(
   "FeedStock",
@@ -82,45 +82,41 @@ const FeedStock = sequelize.define(
     timestamps: true,
     hooks: {
       beforeCreate: async (feedStock, options) => {
-        if (options.userId) {
-          feedStock.created_by = options.userId;
-          feedStock.updated_by = options.userId;
-          feedStock.user_id = options.userId;
-        } else {
+        if (!options.userId) {
           throw new Error("User ID is required for creating FeedStock");
         }
+        feedStock.user_id = options.userId;
+        feedStock.created_by = options.userId;
+        feedStock.updated_by = options.userId;
       },
       beforeUpdate: async (feedStock, options) => {
-        if (options.userId) {
-          feedStock.updated_by = options.userId;
-        } else {
+        if (!options.userId) {
           throw new Error("User ID is required for updating FeedStock");
         }
+        feedStock.updated_by = options.userId;
       },
       afterUpdate: async (feedStock, options) => {
         try {
-          const Notification = require("./notificationModel");
+          const Notification = sequelize.models.Notification;
+          const Feed = sequelize.models.Feed;
           const feed = await Feed.findByPk(feedStock.feedId);
           if (feed && parseFloat(feedStock.stock) <= parseFloat(feed.min_stock)) {
             const existingNotification = await Notification.findOne({
-              where: {
-                feed_stock_id: feedStock.id,
-              },
+              where: { feed_stock_id: feedStock.id },
               order: [["date", "DESC"]],
             });
 
             const shouldCreateNotification =
               !existingNotification ||
               (existingNotification &&
-                new Date() - new Date(existingNotification.date) >
-                  24 * 60 * 60 * 1000);
+                new Date() - new Date(existingNotification.date) > 24 * 60 * 60 * 1000);
 
             if (shouldCreateNotification) {
               const stockAsInteger = Math.floor(parseFloat(feedStock.stock));
               const message = `Sisa stok ${feed.name} tinggal ${stockAsInteger}kg, silahkan tambah stok`;
               await Notification.create({
                 feed_stock_id: feedStock.id,
-                message: message,
+                message,
                 date: new Date(),
               });
               console.log(`Created notification for low stock of ${feed.name}`);

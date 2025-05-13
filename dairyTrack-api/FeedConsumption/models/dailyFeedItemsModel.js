@@ -1,7 +1,9 @@
+// models/dailyFeedItemsModel.js
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 const FeedStock = require("./feedStockModel");
-const { calculateTotalNutrients } = require("./calculateNutrient");
+const DailyFeedSchedule = require("./dailyFeedSchedule");
+const Feed = require("./feedModel");
 
 const DailyFeedItems = sequelize.define(
   "DailyFeedItems",
@@ -45,17 +47,7 @@ const DailyFeedItems = sequelize.define(
       validate: {
         notNull: { msg: "Quantity is required" },
         isDecimal: { msg: "Quantity must be a decimal number" },
-        min: { args: [0], msg: "Quantity must be at least 0" },
-        async checkStock(value) {
-          const feedStock = await FeedStock.findOne({
-            where: { feedId: this.feed_id },
-          });
-          if (feedStock && parseFloat(value) > parseFloat(feedStock.stock)) {
-            throw new Error(
-              `Quantity exceeds available stock for feed ${this.feed_id}`
-            );
-          }
-        },
+        min: { args: [0.01], msg: "Quantity must be greater than 0" },
       },
     },
     user_id: {
@@ -103,17 +95,16 @@ const DailyFeedItems = sequelize.define(
   },
   {
     tableName: "daily_feed_items",
-    timestamps: true, // Enable timestamps since we're adding createdAt/updatedAt
+    timestamps: true,
     hooks: {
       beforeCreate: async (item, options) => {
         const t = options.transaction;
-        if (options.userId) {
-          item.created_by = options.userId;
-          item.updated_by = options.userId;
-          item.user_id = options.userId;
-        } else {
+        if (!options.userId) {
           throw new Error("User ID is required for creating DailyFeedItems");
         }
+        item.created_by = options.userId;
+        item.updated_by = options.userId;
+        item.user_id = options.userId;
 
         const feedStock = await FeedStock.findOne({
           where: { feedId: item.feed_id },
@@ -122,64 +113,65 @@ const DailyFeedItems = sequelize.define(
         });
 
         if (!feedStock) {
-          throw new Error(`Stock record not found for feed ${item.feed_id}`);
+          throw new Error(`Stok pakan dengan ID ${item.feed_id} tidak ditemukan`);
         }
 
         if (parseFloat(feedStock.stock) < parseFloat(item.quantity)) {
-          throw new Error(
-            `Not enough stock available for feed ${item.feed_id}`
-          );
+          throw new Error(`Stok tidak cukup untuk pakan dengan ID ${item.feed_id}. Stok tersedia: ${feedStock.stock} kg`);
         }
 
-        const newStock =
-          parseFloat(feedStock.stock) - parseFloat(item.quantity);
-        await feedStock.update({ stock: newStock }, { transaction: t });
+        const newStock = parseFloat(feedStock.stock) - parseFloat(item.quantity);
+        await feedStock.update(
+          { stock: newStock, updated_by: options.userId },
+          { transaction: t, userId: options.userId }
+        );
       },
       beforeUpdate: async (item, options) => {
         const t = options.transaction;
-        if (options.userId) {
-          item.updated_by = options.userId;
-        } else {
+        if (!options.userId) {
           throw new Error("User ID is required for updating DailyFeedItems");
         }
+        item.updated_by = options.userId;
 
         const originalItem = await DailyFeedItems.findByPk(item.id, {
           transaction: t,
-          lock: t.LOCK.UPDATE,
         });
 
         if (!originalItem) {
-          throw new Error(`Original feed item not found for ID ${item.id}`);
+          throw new Error(`Item pakan dengan ID ${item.id} tidak ditemukan`);
         }
 
         const feedStock = await FeedStock.findOne({
-          where: { feedId: item.feed_id },
+          where: { feedId: originalItem.feed_id },
           transaction: t,
           lock: t.LOCK.UPDATE,
         });
 
         if (!feedStock) {
-          throw new Error(`Stock record not found for feed ${item.feed_id}`);
+          throw new Error(`Stok pakan dengan ID ${originalItem.feed_id} tidak ditemukan`);
         }
 
         const originalQty = parseFloat(originalItem.quantity);
         const newQty = parseFloat(item.quantity);
-        const difference = originalQty - newQty;
+        const difference = newQty - originalQty;
 
-        if (difference < 0) {
-          const additionalNeeded = Math.abs(difference);
-          if (parseFloat(feedStock.stock) < additionalNeeded) {
-            throw new Error(
-              `Not enough stock available for feed ${item.feed_id}`
-            );
+        if (difference > 0) {
+          if (parseFloat(feedStock.stock) < difference) {
+            throw new Error(`Stok tidak cukup untuk pakan dengan ID ${originalItem.feed_id}. Stok tersedia: ${feedStock.stock} kg`);
           }
         }
 
-        const newStock = parseFloat(feedStock.stock) + difference;
-        await feedStock.update({ stock: newStock }, { transaction: t });
+        const newStock = parseFloat(feedStock.stock) - difference;
+        await feedStock.update(
+          { stock: newStock, updated_by: options.userId },
+          { transaction: t, userId: options.userId }
+        );
       },
       beforeDestroy: async (item, options) => {
         const t = options.transaction;
+        if (!options.userId) {
+          throw new Error("User ID is required for deleting DailyFeedItems");
+        }
 
         const feedStock = await FeedStock.findOne({
           where: { feedId: item.feed_id },
@@ -188,21 +180,14 @@ const DailyFeedItems = sequelize.define(
         });
 
         if (!feedStock) {
-          throw new Error(`Stock record not found for feed ${item.feed_id}`);
+          throw new Error(`Stok pakan dengan ID ${item.feed_id} tidak ditemukan`);
         }
 
-        const newStock =
-          parseFloat(feedStock.stock) + parseFloat(item.quantity);
-        await feedStock.update({ stock: newStock }, { transaction: t });
-      },
-      afterCreate: async (item, options) => {
-        await calculateTotalNutrients(item.daily_feed_id);
-      },
-      afterUpdate: async (item, options) => {
-        await calculateTotalNutrients(item.daily_feed_id);
-      },
-      afterDestroy: async (item, options) => {
-        await calculateTotalNutrients(item.daily_feed_id);
+        const newStock = parseFloat(feedStock.stock) + parseFloat(item.quantity);
+        await feedStock.update(
+          { stock: newStock, updated_by: options.userId },
+          { transaction: t, userId: options.userId }
+        );
       },
     },
   }
