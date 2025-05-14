@@ -22,6 +22,10 @@ import ListOfGallery from "./pages/Admin/HighlightsManagement/Gallery/ListOfGall
 import ListOfBlog from "./pages/Admin/HighlightsManagement/Blog/ListOfBlog";
 import ListMilking from "./pages/Admin/MilkProduction/ListMilking";
 
+import ListFeedTypes from "./pages/Admin/FeedManagement/FeedType/ListFeedType";
+import EditFeedTypes from "./pages/Admin/FeedManagement/FeedType/EditFeedType";
+import ListNutrition from "./pages/Admin/FeedManagement/Nutrition/ListNutrition";
+import ListFeed from "./pages/Admin/FeedManagement/Feed/ListFeed";
 // Protected Route component to check authentication
 const ProtectedRoute = ({ children, ...rest }) => {
   // Check if user data exists in localStorage
@@ -134,6 +138,27 @@ function App() {
           <ProtectedRoute path="/admin/list-milking">
             <AdminLayout>
               <ListMilking />
+            </AdminLayout>
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/list-feedType">
+            <AdminLayout>
+              <ListFeedTypes />
+            </AdminLayout>
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/edit-feedType/:id">
+            <AdminLayout>
+              <ListFeedTypes />
+              <EditFeedTypes />
+            </AdminLayout>
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/list-nutrition">
+            <AdminLayout>
+              <ListNutrition />
+            </AdminLayout>
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/list-feed">
+            <AdminLayout>
+              <ListFeed />
             </AdminLayout>
           </ProtectedRoute>
         </Switch>

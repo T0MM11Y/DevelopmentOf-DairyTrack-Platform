@@ -5,7 +5,6 @@ const AdminSidebar = ({ collapsed, activeMenu, onMenuToggle }) => {
   const [userData, setUserData] = useState(null);
 
   useEffect(() => {
-    // Pastikan localStorage tersedia
     if (typeof localStorage !== "undefined") {
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
@@ -18,66 +17,78 @@ const AdminSidebar = ({ collapsed, activeMenu, onMenuToggle }) => {
     }
   }, []);
 
-  // Define all menu items
   const allMenuItems = [
     {
       id: "dashboard",
       title: "Dashboard",
-      icon: "far fa-tachometer-alt", // Ikon regular tanpa fill
+      icon: "far fa-tachometer-alt",
       link: "/admin",
-      showForRoles: ["admin", "supervisor", "farmer"], // Visible for all roles
+      showForRoles: ["admin", "supervisor", "farmer"],
     },
     {
       id: "users",
       title: "Users Management",
-      icon: "far fa-users", // Ikon regular tanpa fill
+      icon: "far fa-users",
       submenu: [
         { id: "list-users", title: "List of Users", link: "/admin/list-users" },
         { id: "add-users", title: "Adding User", link: "/admin/add-users" },
       ],
-      showForRoles: ["admin", "supervisor"], // Not visible for farmers
+      showForRoles: ["admin", "supervisor"],
     },
     {
       id: "cattle",
       title: "Cattle Distribution",
-      icon: "far fa-link", // Ikon regular tanpa fill
+      icon: "far fa-link",
       link: "/admin/cattle-distribution",
-      showForRoles: ["admin", "supervisor"], // Not visible for farmers
+      showForRoles: ["admin", "supervisor"],
     },
     {
       id: "highlights",
       title: "Highlights",
-      icon: "fa-book-open", // Ikon solid dengan fill
+      icon: "fa-book-open",
       submenu: [
         { id: "gallery", title: "Gallery", link: "/admin/list-of-gallery" },
         { id: "blog", title: "Blog", link: "/admin/list-of-blog" },
       ],
-      showForRoles: ["admin", "supervisor"], // Not visible for farmers
+      showForRoles: ["admin", "supervisor"],
     },
     {
       id: "cow",
       title: "Cow Management",
-      icon: "far fa-paw", // Ikon regular tanpa fill
+      icon: "far fa-paw",
       submenu: [
         { id: "list-cows", title: "All Cows", link: "/admin/list-cows" },
         { id: "add-cow", title: "Add Cow", link: "/admin/add-cow" },
       ],
-      showForRoles: ["admin", "supervisor"], // Visible for farmers
+      showForRoles: ["admin", "supervisor"],
     },
-
     {
       id: "milking",
       title: "Milking",
-      icon: "far fa-mug-hot", // Ikon regular tanpa fill
+      icon: "far fa-mug-hot",
       link: "/admin/list-milking",
-      showForRoles: ["admin", "supervisor", "farmer"], // Visible for all roles
+      showForRoles: ["admin", "supervisor", "farmer"],
+    },
+    {
+      id: "feed-management",
+      title: "Feed Management",
+      icon: "fas fa-seedling",
+      submenu: [
+        { id: "feed-type", title: "Feed Type", link: "/admin/list-feedType" },
+        { id: "nutrition-type", title: "Nutrition Type", link: "/admin/list-nutrition" },
+        { id: "feed", title: "Feed", link: "/admin/list-feed" },
+        { id: "feed-stock", title: "Feed Stock", link: "/admin/feed-stock" },
+        { id: "daily-feed-schedule", title: "Daily Feed Schedule", link: "/admin/daily-feed-schedule" },
+        { id: "daily-feed-item", title: "Daily Feed Item", link: "/admin/daily-feed-item" },
+        { id: "daily-feed-nutrition", title: "Daily Feed Nutrition", link: "/admin/daily-feed-nutrition" },
+      ],
+      showForRoles: ["admin","farmer", "supervisor"],
     },
   ];
 
-  // Filter menu items based on user role
   const userRole = userData?.role?.toLowerCase() || "";
   const menuItems = allMenuItems.filter(
-    (item) => item.showForRoles.includes(userRole) || userRole === "admin" // Admin sees everything
+    (item) => item.showForRoles.includes(userRole) || userRole === "admin"
   );
 
   return (
