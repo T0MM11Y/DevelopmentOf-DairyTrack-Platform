@@ -1,14 +1,12 @@
-// EditFeedType.js
+// src/pages/Admin/FeedManagement/FeedStock/EditFeedStock.js
 import { useState, useEffect } from "react";
-import { useParams, useHistory } from "react-router-dom"; // Changed to useHistory
-import { getFeedTypeById, updateFeedType } from "../../../../controllers/feedTypeController";
+import { getFeedStockById, updateFeedStock } from "../../../../controllers/feedStockController";
 import Swal from "sweetalert2";
+import { Button } from "react-bootstrap";
 
-const EditFeedType = () => {
-  const { id } = useParams();
-  const history = useHistory(); // Use history instead of navigate
+const EditFeedStock = ({ id, onClose, onSaved }) => {
   const [form, setForm] = useState(null);
-  const [originalName, setOriginalName] = useState("");
+  const [originalStock, setOriginalStock] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -25,31 +23,30 @@ const EditFeedType = () => {
         text: "Token tidak ditemukan. Silakan login kembali.",
       });
       localStorage.removeItem("user");
-      history.push("/"); // Use history.push
+      window.location.href = "/";
     }
-  }, [history]);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await getFeedTypeById(id);
+        const response = await getFeedStockById(id);
         if (response.success) {
           setForm({
-            name: response.feedType.name || "",
-            updated_at: response.feedType.updated_at || "",
-            updated_by: currentUser?.user_id || "",
+            stock: response.data.stock || 0,
+            feed_name: response.data.feed_name || "",
+            updated_at: response.data.updated_at || "",
           });
-          setOriginalName(response.feedType.name || "");
+          setOriginalStock(response.data.stock);
         } else {
-          throw new Error(response.message || "Feed type not found.");
+          throw new Error(response.message || "Stok pakan tidak ditemukan.");
         }
       } catch (err) {
-        setError("Gagal memuat data jenis pakan.");
-        console.error(err);
+        setError("Gagal memuat data stok pakan.");
         Swal.fire({
           icon: "error",
           title: "Gagal Memuat",
-          text: "Gagal memuat data jenis pakan.",
+          text: "Gagal memuat data stok pakan.",
         });
       } finally {
         setLoading(false);
@@ -62,23 +59,33 @@ const EditFeedType = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: value === "" ? "" : parseFloat(value) || 0,
+    }));
+  };
+
+  const formatNumber = (value) => {
+    if (value === "" || isNaN(value)) return "";
+    const num = parseFloat(value);
+    if (Number.isInteger(num)) return num.toString();
+    return num.toString();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.name === originalName) {
+    if (parseFloat(form.stock) === parseFloat(originalStock)) {
       Swal.fire({
         icon: "info",
         title: "Tidak Ada Perubahan",
-        text: "Nama jenis pakan tidak berubah.",
+        text: "Stok pakan tidak berubah.",
       });
       return;
     }
 
     const result = await Swal.fire({
       title: "Konfirmasi Perubahan",
-      text: `Apakah anda yakin mau mengubah "${originalName}" jadi "${form.name}"?`,
+      text: `Apakah anda yakin mau mengubah stok pakan "${form.feed_name}" dari ${originalStock} menjadi ${form.stock}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#3085d6",
@@ -88,25 +95,28 @@ const EditFeedType = () => {
     });
 
     if (!result.isConfirmed) {
-      history.push("/admin/list-feedType"); // Use history.push
+      onClose();
       return;
     }
 
     setSubmitting(true);
     try {
-      const payload = { name: form.name };
-      const response = await updateFeedType(id, payload);
+      const payload = {
+        stock: parseFloat(form.stock) || 0,
+      };
+      const response = await updateFeedStock(id, payload);
       if (response.success) {
         Swal.fire({
           icon: "success",
           title: "Berhasil",
-          text: "Jenis pakan berhasil diperbarui.",
+          text: response.message || "Stok pakan berhasil diperbarui.",
           timer: 1500,
           showConfirmButton: false,
         });
-        history.push("/admin/list-feedType"); // Use history.push
+        if (onSaved) onSaved();
+        onClose();
       } else {
-        throw new Error(response.message || "Gagal memperbarui jenis pakan.");
+        throw new Error(response.message || "Gagal memperbarui stok pakan.");
       }
     } catch (err) {
       console.error("Update error:", err);
@@ -120,10 +130,6 @@ const EditFeedType = () => {
     }
   };
 
-  const handleClose = () => {
-    history.push("/admin/list-feedType"); // Use history.push
-  };
-
   return (
     <div
       className="modal fade show d-block"
@@ -132,17 +138,17 @@ const EditFeedType = () => {
     >
       <div className="modal-dialog modal-lg">
         <div className="modal-content">
-          <div className="modal-header">
-            <h4 className="modal-title text-info fw-bold">Edit Jenis Pakan</h4>
+          <div className="modal-header bg-light border-bottom">
+            <h4 className="modal-title text-info fw-bold">Edit Stok Pakan</h4>
             <button
               type="button"
               className="btn-close"
-              onClick={handleClose}
+              onClick={onClose}
               aria-label="Close"
             ></button>
           </div>
-          <div className="modal-body">
-            {error && <p className="text-danger text-center">{error}</p>}
+          <div className="modal-body p-4">
+            {error && <p className="text-danger text-center mb-4">{error}</p>}
             {loading || !form ? (
               <div className="text-center py-5">
                 <div className="spinner-border text-info" role="status" />
@@ -152,32 +158,48 @@ const EditFeedType = () => {
               <form onSubmit={handleSubmit}>
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label className="form-label fw-bold">Nama Jenis Pakan</label>
+                    <label className="form-label fw-bold">Nama Pakan</label>
                     <input
                       type="text"
-                      name="name"
-                      value={form.name}
+                      value={form.feed_name}
+                      className="form-control bg-light"
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Stok</label>
+                    <input
+                      type="number"
+                      name="stock"
+                      value={formatNumber(form.stock)}
                       onChange={handleChange}
                       className="form-control"
                       required
+                      min="0"
+                      step="0.01"
                     />
                   </div>
+                </div>
+
+                <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">Diperbarui oleh</label>
                     <input
                       type="text"
-                      className="form-control"
+                      className="form-control bg-light"
                       value={currentUser?.name || "Tidak diketahui"}
                       readOnly
                       disabled
                     />
-                    <input type="hidden" name="updated_by" value={form.updated_by} />
                   </div>
+
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">Tanggal Diperbarui</label>
                     <input
                       type="text"
-                      className="form-control"
+                      className="form-control bg-light"
                       value={
                         form.updated_at
                           ? new Date(form.updated_at).toLocaleString("id-ID")
@@ -188,9 +210,10 @@ const EditFeedType = () => {
                     />
                   </div>
                 </div>
+
                 <button
                   type="submit"
-                  className="btn btn-info w-100"
+                  className="btn btn-info w-100 mt-3"
                   disabled={submitting}
                 >
                   {submitting ? "Menyimpan..." : "Simpan Perubahan"}
@@ -204,4 +227,4 @@ const EditFeedType = () => {
   );
 };
 
-export default EditFeedType;
+export default EditFeedStock;

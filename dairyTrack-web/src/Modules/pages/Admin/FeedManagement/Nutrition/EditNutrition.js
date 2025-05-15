@@ -25,7 +25,7 @@ const NutritionEditPage = () => {
         text: "Token tidak ditemukan. Silakan login kembali.",
       });
       localStorage.removeItem("user");
-      history.push("/login");
+      history.push("/");
     }
   }, [history]);
 

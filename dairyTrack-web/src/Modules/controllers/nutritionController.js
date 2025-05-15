@@ -13,7 +13,7 @@ export const addNutrition = async (nutritionData) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
@@ -53,7 +53,7 @@ export const getNutritionById = async (nutritionId) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
@@ -91,7 +91,7 @@ export const listNutritions = async () => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
@@ -132,7 +132,7 @@ export const updateNutrition = async (nutritionId, nutritionData) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
@@ -186,7 +186,7 @@ export const deleteNutrition = async (nutritionId) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
@@ -239,7 +239,7 @@ export const exportNutritionsToPDF = async () => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return;
   }
   try {
@@ -294,7 +294,7 @@ export const exportNutritionsToExcel = async () => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return;
   }
   try {

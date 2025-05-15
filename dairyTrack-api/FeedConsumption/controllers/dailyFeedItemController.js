@@ -1,4 +1,4 @@
-// controllers/dailyFeedItemsController.js
+// controllers/dailyFeedItemController.js
 const DailyFeedSchedule = require("../models/dailyFeedSchedule");
 const DailyFeedItems = require("../models/dailyFeedItemsModel");
 const Feed = require("../models/feedModel");
@@ -6,23 +6,19 @@ const FeedStock = require("../models/feedStockModel");
 const FeedNutrisi = require("../models/feedNutritionModel");
 const Nutrisi = require("../models/nutritionModel");
 const UserCowAssociation = require("../models/userCowAssociationModel");
+const User = require("../models/userModel");
 const { Op } = require("sequelize");
 const sequelize = require("../config/database");
 
-// Helper function to format feed item response
 const formatFeedItemResponse = (item) => ({
   id: item.id,
   daily_feed_id: item.daily_feed_id,
   feed_id: item.feed_id,
   feed_name: item.Feed ? item.Feed.name : null,
-  quantity: parseFloat(item.quantity),
+  quantity: parseFloat(item.quantity) || 0,
   user_id: item.user_id,
-  created_by: item.Creator
-    ? { id: item.Creator.id, name: item.Creator.name }
-    : null,
-  updated_by: item.Updater
-    ? { id: item.Updater.id, name: item.Updater.name }
-    : null,
+  created_by: item.Creator ? { id: item.Creator.id, name: item.Creator.name } : null,
+  updated_by: item.Updater ? { id: item.Updater.id, name: item.Updater.name } : null,
   created_at: item.createdAt,
   updated_at: item.updatedAt,
   nutrients: item.Feed?.FeedNutrisiRecords
@@ -30,12 +26,11 @@ const formatFeedItemResponse = (item) => ({
         nutrisi_id: n.nutrisi_id,
         nutrisi_name: n.Nutrisi ? n.Nutrisi.name : null,
         unit: n.Nutrisi ? n.Nutrisi.unit : null,
-        amount: parseFloat(n.amount),
+        amount: parseFloat(n.amount) || 0,
       }))
     : [],
 });
 
-// Add feed item
 exports.addFeedItem = async (req, res) => {
   const { daily_feed_id, feed_items } = req.body;
   const userId = req.user?.id;
@@ -43,19 +38,13 @@ exports.addFeedItem = async (req, res) => {
 
   try {
     if (!userId) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Autentikasi gagal. Silakan login kembali.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi gagal. Silakan login kembali.",
+      });
     }
 
-    if (
-      !daily_feed_id ||
-      !Array.isArray(feed_items) ||
-      feed_items.length === 0
-    ) {
+    if (!daily_feed_id || !Array.isArray(feed_items) || feed_items.length === 0) {
       return res.status(400).json({
         success: false,
         message: "daily_feed_id dan feed_items (array non-kosong) diperlukan",
@@ -66,9 +55,10 @@ exports.addFeedItem = async (req, res) => {
       include: [{ model: DailyFeedItems, as: "DailyFeedItems" }],
     });
     if (!dailyFeed) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Sesi pakan harian tidak ditemukan" });
+      return res.status(404).json({
+        success: false,
+        message: "Sesi pakan harian tidak ditemukan",
+      });
     }
 
     const userCowAssociation = await UserCowAssociation.findOne({
@@ -113,12 +103,8 @@ exports.addFeedItem = async (req, res) => {
       });
     }
 
-    const existingFeedIds = dailyFeed.DailyFeedItems.map(
-      (item) => item.feed_id
-    );
-    const duplicateFeedIds = feedIdsInRequest.filter((id) =>
-      existingFeedIds.includes(id)
-    );
+    const existingFeedIds = dailyFeed.DailyFeedItems.map((item) => item.feed_id);
+    const duplicateFeedIds = feedIdsInRequest.filter((id) => existingFeedIds.includes(id));
     if (duplicateFeedIds.length > 0) {
       const duplicateFeedNames = await Feed.findAll({
         where: { id: duplicateFeedIds },
@@ -136,61 +122,83 @@ exports.addFeedItem = async (req, res) => {
       });
     }
 
-    for (const item of feed_items) {
-      const { feed_id, quantity } = item;
-
-      if (!feed_id || !quantity) {
-        errors.push({ item, error: "feed_id dan quantity diperlukan" });
-        continue;
-      }
-
-      const qtyNum = parseFloat(quantity);
-      if (isNaN(qtyNum) || qtyNum <= 0) {
-        errors.push({ feed_id, error: "Quantity harus lebih dari 0" });
-        continue;
-      }
-
-      const feed = await Feed.findByPk(feed_id, { transaction });
-      if (!feed) {
-        errors.push({ feed_id, error: "Pakan tidak ditemukan" });
-        continue;
-      }
-
-      try {
-        const newItem = await DailyFeedItems.create(
-          {
-            daily_feed_id,
-            feed_id,
-            quantity: qtyNum,
-            user_id: userId,
-            created_by: userId,
-            updated_by: userId,
-          },
-          { transaction, userId }
-        );
-
-        addedItems.push({
-          id: newItem.id,
-          daily_feed_id: newItem.daily_feed_id,
-          feed_id: newItem.feed_id,
-          feed_name: feed.name,
-          quantity: parseFloat(newItem.quantity),
-          created_at: newItem.createdAt,
-          updated_at: newItem.updatedAt,
+    const feedItems = feed_items.map((item) => {
+      const qtyNum = parseFloat(item.quantity);
+      if (!item.feed_id || isNaN(qtyNum) || qtyNum <= 0) {
+        errors.push({
+          feed_id: item.feed_id,
+          error: "feed_id dan quantity valid diperlukan",
         });
-      } catch (error) {
-        errors.push({ feed_id, error: error.message });
+        return null;
       }
-    }
+      return {
+        daily_feed_id,
+        feed_id: item.feed_id,
+        quantity: qtyNum,
+        user_id: userId,
+        created_by: userId,
+        updated_by: userId,
+      };
+    }).filter((item) => item !== null);
 
-    if (addedItems.length === 0) {
+    if (feedItems.length === 0) {
       await transaction.rollback();
       return res.status(400).json({
         success: false,
-        message: "Tidak ada item pakan yang dapat ditambahkan",
+        message: "Tidak ada item pakan yang valid untuk ditambahkan",
         errors,
       });
     }
+
+    for (const item of feedItems) {
+      const feed = await Feed.findByPk(item.feed_id, { transaction });
+      if (!feed) {
+        errors.push({ feed_id: item.feed_id, error: "Pakan tidak ditemukan" });
+        continue;
+      }
+
+      const feedStock = await FeedStock.findOne({
+        where: { feedId: item.feed_id },
+        transaction,
+      });
+      if (!feedStock) {
+        errors.push({ feed_id: item.feed_id, error: `Stok pakan dengan ID ${item.feed_id} tidak ditemukan` });
+      } else if (parseFloat(feedStock.stock) < parseFloat(item.quantity)) {
+        errors.push({
+          feed_id: item.feed_id,
+          error: `Stok tidak cukup untuk pakan dengan ID ${item.feed_id}. Stok tersedia: ${feedStock.stock} kg`,
+        });
+      }
+    }
+
+    if (errors.length > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Terdapat kesalahan dalam data pakan",
+        errors,
+      });
+    }
+
+    const createdItems = await DailyFeedItems.bulkCreate(feedItems, {
+      transaction,
+      validate: true,
+      individualHooks: true,
+      userId, // Pass userId directly as in dailyFeedController.js
+    });
+
+    createdItems.forEach((newItem) => {
+      const feed = feedItems.find((item) => item.feed_id === newItem.feed_id);
+      addedItems.push({
+        id: newItem.id,
+        daily_feed_id: newItem.daily_feed_id,
+        feed_id: newItem.feed_id,
+        feed_name: feed ? feed.name : "Unknown",
+        quantity: parseFloat(newItem.quantity),
+        created_at: newItem.createdAt,
+        updated_at: newItem.updatedAt,
+      });
+    });
 
     await transaction.commit();
 
@@ -215,18 +223,21 @@ exports.addFeedItem = async (req, res) => {
                       attributes: ["id", "name", "unit"],
                     },
                   ],
+                  required: false,
                 },
               ],
             },
             {
-              model: sequelize.models.User,
+              model: User,
               as: "Creator",
               attributes: ["id", "name"],
+              required: false,
             },
             {
-              model: sequelize.models.User,
+              model: User,
               as: "Updater",
               attributes: ["id", "name"],
+              required: false,
             },
           ],
         },
@@ -250,7 +261,6 @@ exports.addFeedItem = async (req, res) => {
   }
 };
 
-// Update feed item
 exports.updateFeedItem = async (req, res) => {
   const { id } = req.params;
   const { quantity } = req.body;
@@ -259,12 +269,10 @@ exports.updateFeedItem = async (req, res) => {
 
   try {
     if (!userId) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Autentikasi gagal. Silakan login kembali.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi gagal. Silakan login kembali.",
+      });
     }
 
     if (!quantity || isNaN(parseFloat(quantity)) || parseFloat(quantity) <= 0) {
@@ -286,9 +294,10 @@ exports.updateFeedItem = async (req, res) => {
 
     if (!item) {
       await transaction.rollback();
-      return res
-        .status(404)
-        .json({ success: false, message: "Item pakan tidak ditemukan" });
+      return res.status(404).json({
+        success: false,
+        message: "Item pakan tidak ditemukan",
+      });
     }
 
     const userCowAssociation = await UserCowAssociation.findOne({
@@ -327,11 +336,23 @@ exports.updateFeedItem = async (req, res) => {
                   attributes: ["id", "name", "unit"],
                 },
               ],
+              required: false,
             },
           ],
+          required: false,
         },
-        { model: User, as: "Creator", attributes: ["id", "name"] },
-        { model: User, as: "Updater", attributes: ["id", "name"] },
+        {
+          model: User,
+          as: "Creator",
+          attributes: ["id", "name"],
+          required: false,
+        },
+        {
+          model: User,
+          as: "Updater",
+          attributes: ["id", "name"],
+          required: false,
+        },
       ],
     });
 
@@ -343,9 +364,6 @@ exports.updateFeedItem = async (req, res) => {
   } catch (error) {
     if (transaction) await transaction.rollback();
     console.error("Error updating feed item:", error);
-    if (error.message.includes("Stok tidak cukup")) {
-      return res.status(400).json({ success: false, message: error.message });
-    }
     return res.status(500).json({
       success: false,
       message: "Terjadi kesalahan pada server",
@@ -354,7 +372,6 @@ exports.updateFeedItem = async (req, res) => {
   }
 };
 
-// Delete feed item
 exports.deleteFeedItem = async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id;
@@ -362,12 +379,10 @@ exports.deleteFeedItem = async (req, res) => {
 
   try {
     if (!userId) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Autentikasi gagal. Silakan login kembali.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi gagal. Silakan login kembali.",
+      });
     }
 
     transaction = await sequelize.transaction();
@@ -382,9 +397,10 @@ exports.deleteFeedItem = async (req, res) => {
 
     if (!item) {
       await transaction.rollback();
-      return res
-        .status(404)
-        .json({ success: false, message: "Item pakan tidak ditemukan" });
+      return res.status(404).json({
+        success: false,
+        message: "Item pakan tidak ditemukan",
+      });
     }
 
     const userCowAssociation = await UserCowAssociation.findOne({
@@ -421,7 +437,6 @@ exports.deleteFeedItem = async (req, res) => {
   }
 };
 
-// Bulk update feed items
 exports.bulkUpdateFeedItems = async (req, res) => {
   const { items } = req.body;
   const userId = req.user?.id;
@@ -429,12 +444,10 @@ exports.bulkUpdateFeedItems = async (req, res) => {
 
   try {
     if (!userId) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Autentikasi gagal. Silakan login kembali.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi gagal. Silakan login kembali.",
+      });
     }
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -530,9 +543,7 @@ exports.bulkUpdateFeedItems = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `${results.filter((r) => r.success).length} dari ${
-        results.length
-      } item berhasil diperbarui`,
+      message: `${results.filter((r) => r.success).length} dari ${results.length} item berhasil diperbarui`,
       results,
     });
   } catch (error) {
@@ -546,19 +557,16 @@ exports.bulkUpdateFeedItems = async (req, res) => {
   }
 };
 
-// Get all feed items
 exports.getAllFeedItems = async (req, res) => {
   try {
     const { daily_feed_id, feed_id } = req.query;
     const userId = req.user?.id;
 
     if (!userId) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Autentikasi gagal. Silakan login kembali.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi gagal. Silakan login kembali.",
+      });
     }
 
     const filter = {};
@@ -579,6 +587,7 @@ exports.getAllFeedItems = async (req, res) => {
           as: "DailyFeedSchedule",
           where: { cow_id: { [Op.in]: allowedCowIds } },
           attributes: ["id", "cow_id"],
+          required: true,
         },
         {
           model: Feed,
@@ -595,20 +604,28 @@ exports.getAllFeedItems = async (req, res) => {
                   attributes: ["id", "name", "unit"],
                 },
               ],
+              required: false,
             },
           ],
+          required: false,
         },
-        { model: User, as: "Creator", attributes: ["id", "name"] },
-        { model: User, as: "Updater", attributes: ["id", "name"] },
+        {
+          model: User,
+          as: "Creator",
+          attributes: ["id", "name"],
+          required: false,
+        },
+        {
+          model: User,
+          as: "Updater",
+          attributes: ["id", "name"],
+          required: false,
+        },
       ],
       order: [["id", "ASC"]],
     });
 
-    return res.status(200).json({
-      success: true,
-      count: items.length,
-      data: items.map(formatFeedItemResponse),
-    });
+    return res.status(200).json(items.map(formatFeedItemResponse));
   } catch (error) {
     console.error("Error fetching feed items:", error);
     return res.status(500).json({
@@ -619,19 +636,16 @@ exports.getAllFeedItems = async (req, res) => {
   }
 };
 
-// Get feed item by ID
 exports.getFeedItemById = async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id;
 
   try {
     if (!userId) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Autentikasi gagal. Silakan login kembali.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi gagal. Silakan login kembali.",
+      });
     }
 
     const item = await DailyFeedItems.findByPk(id, {
@@ -640,6 +654,7 @@ exports.getFeedItemById = async (req, res) => {
           model: DailyFeedSchedule,
           as: "DailyFeedSchedule",
           attributes: ["id", "cow_id"],
+          required: true,
         },
         {
           model: Feed,
@@ -656,18 +671,31 @@ exports.getFeedItemById = async (req, res) => {
                   attributes: ["id", "name", "unit"],
                 },
               ],
+              required: false,
             },
           ],
+          required: false,
         },
-        { model: User, as: "Creator", attributes: ["id", "name"] },
-        { model: User, as: "Updater", attributes: ["id", "name"] },
+        {
+          model: User,
+          as: "Creator",
+          attributes: ["id", "name"],
+          required: false,
+        },
+        {
+          model: User,
+          as: "Updater",
+          attributes: ["id", "name"],
+          required: false,
+        },
       ],
     });
 
     if (!item) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Item pakan tidak ditemukan" });
+      return res.status(404).json({
+        success: false,
+        message: "Item pakan tidak ditemukan",
+      });
     }
 
     const userCowAssociation = await UserCowAssociation.findOne({
@@ -680,10 +708,7 @@ exports.getFeedItemById = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      data: formatFeedItemResponse(item),
-    });
+    return res.status(200).json(formatFeedItemResponse(item));
   } catch (error) {
     console.error("Error fetching feed item:", error);
     return res.status(500).json({
@@ -694,26 +719,24 @@ exports.getFeedItemById = async (req, res) => {
   }
 };
 
-// Get feed items by daily feed ID
 exports.getFeedItemsByDailyFeedId = async (req, res) => {
   const { daily_feed_id } = req.params;
   const userId = req.user?.id;
 
   try {
     if (!userId) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Autentikasi gagal. Silakan login kembali.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi gagal. Silakan login kembali.",
+      });
     }
 
     const dailyFeed = await DailyFeedSchedule.findByPk(daily_feed_id);
     if (!dailyFeed) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Sesi pakan harian tidak ditemukan" });
+      return res.status(404).json({
+        success: false,
+        message: "Sesi pakan harian tidak ditemukan",
+      });
     }
 
     const userCowAssociation = await UserCowAssociation.findOne({
@@ -744,19 +767,27 @@ exports.getFeedItemsByDailyFeedId = async (req, res) => {
                   attributes: ["id", "name", "unit"],
                 },
               ],
+              required: false,
             },
           ],
+          required: false,
         },
-        { model: User, as: "Creator", attributes: ["id", "name"] },
-        { model: User, as: "Updater", attributes: ["id", "name"] },
+        {
+          model: User,
+          as: "Creator",
+          attributes: ["id", "name"],
+          required: false,
+        },
+        {
+          model: User,
+          as: "Updater",
+          attributes: ["id", "name"],
+          required: false,
+        },
       ],
     });
 
-    return res.status(200).json({
-      success: true,
-      count: feedItems.length,
-      data: feedItems.map(formatFeedItemResponse),
-    });
+    return res.status(200).json(feedItems.map(formatFeedItemResponse));
   } catch (error) {
     console.error("Error fetching feed items:", error);
     return res.status(500).json({
@@ -767,19 +798,16 @@ exports.getFeedItemsByDailyFeedId = async (req, res) => {
   }
 };
 
-// Get feed usage by date
 exports.getFeedUsageByDate = async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
     const userId = req.user?.id;
 
     if (!userId) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Autentikasi gagal. Silakan login kembali.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi gagal. Silakan login kembali.",
+      });
     }
 
     if (start_date && !/^\d{4}-\d{2}-\d{2}$/.test(start_date)) {
@@ -810,8 +838,7 @@ exports.getFeedUsageByDate = async (req, res) => {
     const whereClause = {};
     if (start_date || end_date) {
       whereClause["$DailyFeedSchedule.date$"] = {};
-      if (start_date)
-        whereClause["$DailyFeedSchedule.date$"][Op.gte] = start_date;
+      if (start_date) whereClause["$DailyFeedSchedule.date$"][Op.gte] = start_date;
       if (end_date) whereClause["$DailyFeedSchedule.date$"][Op.lte] = end_date;
     }
     whereClause["$DailyFeedSchedule.cow_id$"] = { [Op.in]: allowedCowIds };

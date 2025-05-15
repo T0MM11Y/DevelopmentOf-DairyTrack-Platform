@@ -27,7 +27,7 @@ const FeedTypeCreatePage = ({ onClose, onSaved }) => {
         text: "Token tidak ditemukan. Silakan login kembali.",
       });
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      window.location.href = "/";
     }
   }, []);
 

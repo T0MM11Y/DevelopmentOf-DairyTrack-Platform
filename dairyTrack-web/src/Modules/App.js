@@ -26,6 +26,10 @@ import ListFeedTypes from "./pages/Admin/FeedManagement/FeedType/ListFeedType";
 import EditFeedTypes from "./pages/Admin/FeedManagement/FeedType/EditFeedType";
 import ListNutrition from "./pages/Admin/FeedManagement/Nutrition/ListNutrition";
 import ListFeed from "./pages/Admin/FeedManagement/Feed/ListFeed";
+import EditFeed from "./pages/Admin/FeedManagement/Feed/EditFeed";
+import ListStock from "./pages/Admin/FeedManagement/FeedStock/FeedStockList";
+import ListDailyFeedSchedule from "./pages/Admin/FeedManagement/DailyFeedSchedule/ListDailyFeedSchedule";
+import ListDailyFeedItem from "./pages/Admin/FeedManagement/DailyFeedItem/ListDailyFeedItem";
 // Protected Route component to check authentication
 const ProtectedRoute = ({ children, ...rest }) => {
   // Check if user data exists in localStorage
@@ -159,6 +163,27 @@ function App() {
           <ProtectedRoute path="/admin/list-feed">
             <AdminLayout>
               <ListFeed />
+            </AdminLayout>
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/edit-feed/:id">
+            <AdminLayout>
+              <ListFeed />
+              <EditFeed />
+            </AdminLayout>
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/list-stock">
+            <AdminLayout>
+              <ListStock />
+            </AdminLayout>
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/list-schedule">
+            <AdminLayout>
+              <ListDailyFeedSchedule />
+            </AdminLayout>
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/list-feedItem">
+            <AdminLayout>
+              <ListDailyFeedItem />
             </AdminLayout>
           </ProtectedRoute>
         </Switch>

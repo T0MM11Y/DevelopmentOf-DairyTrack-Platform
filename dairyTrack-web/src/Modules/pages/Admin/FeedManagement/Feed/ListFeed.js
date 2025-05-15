@@ -58,7 +58,7 @@ const FeedListPage = () => {
             text: "Token tidak valid atau kedaluwarsa. Silakan login kembali.",
           });
           localStorage.removeItem("user");
-          window.location.href = "/login";
+          window.location.href = "/";
         } else {
           Swal.fire("Error", feedResponse.message || "Gagal memuat data.", "error");
         }
@@ -101,7 +101,7 @@ const FeedListPage = () => {
             text: "Token tidak valid atau kedaluwarsa. Silakan login kembali.",
           });
           localStorage.removeItem("user");
-          window.location.href = "/login";
+          window.location.href = "/";
         } else {
           Swal.fire("Error", response.message || "Gagal menghapus pakan.", "error");
         }
@@ -126,7 +126,7 @@ const FeedListPage = () => {
         text: "Token tidak ditemukan. Silakan login kembali.",
       });
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      window.location.href = "/";
     } else {
       fetchData();
     }

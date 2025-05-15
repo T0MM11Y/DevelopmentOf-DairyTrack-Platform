@@ -12,7 +12,7 @@ export const addFeed = async (feedData) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
@@ -106,7 +106,7 @@ export const updateFeed = async (id, feedData) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
@@ -143,7 +143,7 @@ export const deleteFeed = async (id) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {

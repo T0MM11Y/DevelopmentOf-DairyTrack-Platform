@@ -68,7 +68,7 @@ export const getFeedTypeById = async (feedTypeId) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
@@ -152,7 +152,7 @@ export const updateFeedType = async (feedTypeId, feedTypeData) => {
       text: "Token tidak ditemukan. Silakan login kembali.",
     });
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/";
     return { success: false, message: "Token tidak ditemukan." };
   }
   try {
